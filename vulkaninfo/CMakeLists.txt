@@ -1,5 +1,81 @@
 # CMakeLists.txt file for building Vulkaninfo
 
+set(VULKANINFO_INCLUDE_DIRS
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR/..}
+   )
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    include(FindPkgConfig)
+    option(BUILD_WSI_XCB_SUPPORT "Build XCB WSI support" ON)
+    option(BUILD_WSI_XLIB_SUPPORT "Build Xlib WSI support" ON)
+    option(BUILD_WSI_WAYLAND_SUPPORT "Build Wayland WSI support" ON)
+    option(BUILD_WSI_MIR_SUPPORT "Build Mir WSI support" ON)
+    set(VULKANINFO_WSI_SELECTION "XCB" CACHE STRING "Select WSI target for vulkaninfo (XCB, XLIB, WAYLAND, MIR, DISPLAY)")
+
+    if (BUILD_WSI_XCB_SUPPORT)
+        find_package(XCB REQUIRED)
+    endif()
+
+    if (BUILD_WSI_XLIB_SUPPORT)
+        find_package(X11 REQUIRED)
+    endif()
+    
+    if (BUILD_WSI_WAYLAND_SUPPORT)
+        find_package(Wayland REQUIRED)
+    endif()
+
+    if (BUILD_WSI_MIR_SUPPORT)
+        find_package(Mir REQUIRED)
+    endif()
+
+    if (VULKANINFO_WSI_SELECTION STREQUAL "XCB")
+        if (NOT BUILD_WSI_XCB_SUPPORT)
+            message( FATAL_ERROR "Selected XCB for vulkaninfo build but not building Xcb support" )
+        endif()
+        set(VULKANINFO_INCLUDE_DIRS
+            ${XCB_INCLUDE_DIRS}
+            ${VULKANINFO_INCLUDE_DIRS}
+        )
+        link_libraries(${XCB_LIBRARIES})
+        add_definitions(-DVK_USE_PLATFORM_XCB_KHR)
+    elseif (VULKANINFO_WSI_SELECTION STREQUAL "XLIB")
+        if (NOT BUILD_WSI_XLIB_SUPPORT)
+            message( FATAL_ERROR "Selected XLIB for vulkaninfo build but not building Xlib support" )
+        endif()
+        set(VULKANINFO_INCLUDE_DIRS
+            ${XLIB_INCLUDE_DIRS}
+            ${VULKANINFO_INCLUDE_DIRS}
+        )
+        link_libraries(${XLIB_LIBRARIES})
+        add_definitions(-DVK_USE_PLATFORM_XLIB_KHR)
+    elseif (VULKANINFO_WSI_SELECTION STREQUAL "WAYLAND")
+        if (NOT BUILD_WSI_WAYLAND_SUPPORT)
+            message( FATAL_ERROR "Selected Wayland for vulkaninfo build but not building Wayland support" )
+        endif()
+        set(VULKANINFO_INCLUDE_DIRS
+            ${WAYLAND_CLIENT_INCLUDE_DIRS}
+            ${VULKANINFO_INCLUDE_DIRS}
+        )
+        link_libraries(${WAYLAND_CLIENT_LIBRARIES})
+        add_definitions(-DVK_USE_PLATFORM_WAYLAND_KHR)
+    elseif (VULKANINFO_WSI_SELECTION STREQUAL "MIR")
+        if (NOT BUILD_WSI_MIR_SUPPORT)
+            message( FATAL_ERROR "Selected MIR for vulkaninfo build but not building Mir support" )
+        endif()
+        set(VULKANINFO_INCLUDE_DIRS
+            ${MIR_INCLUDE_DIRS}
+            ${VULKANINFO_INCLUDE_DIRS}
+        )
+        link_libraries(${MIR_LIBRARIES})
+        add_definitions(-DVK_USE_PLATFORM_MIR_KHR)
+    endif()
+endif()
+
+include_directories(
+    ${VULKANINFO_INCLUDE_DIRS}
+    )
+
 if(WIN32)
     add_executable(vulkaninfo vulkaninfo.c vulkaninfo.rc)
 elseif(APPLE)
@@ -9,9 +85,6 @@ elseif(APPLE)
         )
 else()
     add_executable(vulkaninfo vulkaninfo.c)
-endif()
-
-if(APPLE)
 endif()
 
 # Predefine loader root as a cmake cache variable for cmake-gui
